@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta http-equiv=Content-Type content=text/html;charset=UTF-8>
+        <title>Mouselook in JavaScript using scroll</title>
+        <style>
+            body {
+                margin: 20px;
+                font: 13px Cambria, Georgia, serif;
+            }
+            .container {
+                width: 640px;
+                margin: 0 auto 20px;
+                position: relative;
+            }
+            .helptext {
+                font: 75% "Helvetica Neue", Helvetica, Arial, FreeSans, "Liberation Sans", sans-serif;
+                color: white;
+                background-color: black;
+                border: 1px solid #E0E0E0;
+                border-radius: 5px;
+                -moz-border-radius: 5px;
+                -webkit-border-radius: 5px;
+                padding: 5px;
+                position: absolute;
+                bottom: 10px;
+                left: 10px;
+                opacity: 0.5;
+            }
+            p {
+                margin-bottom: 20px;
+            }
+        </style>
+    </head>
+    <body>
+        <h1>Mouselook in JavaScript using scroll</h1>
+        <p>
+            You can look around by "scrolling" your trackpad or trackpad-like surface. You will need:
+        </p>
+        <ul>
+            <li>A device that supports scrolling horizontally as well as vertically, like an Apple trackpad or Magic Mouse (ie, look with two fingers on most trackpads, or with one finger on the surface of a Magic Mouse).</li>
+            <li>A browser that supports horizontal and vertical scroll events, <em>and</em> of course supports WebGL for the 3D scene (Firefox, Chrome)</li>
+        </ul>
+        <p>
+            This demo is built on the (amazing) <a href=http://www.ambiera.com/copperlicht/index.html>CopperLicht engine</a>.
+        </p>
+        <div class=container>
+            <canvas id=theCanvas width=640 height=480></canvas>
+            <span class=helptext>
+                Look with the mouse/trackpad.<br>
+                Move with cursor keys or WASD.<br>
+                Jump with space.
+            </span>
+        </div>
+        <script src=copperlichtdata/copperlicht.js></script>
+        <script>
+        // utility which creates an object that inherits all properties and methods
+        // from another
+        function proxyObject(obj) {
+            function f() {}
+            f.prototype = obj;
+            return new f;
+        }
+
+        var engine = startCopperLichtFromFile('theCanvas', 'copperlichtdata/room.ccbjs');
+        engine.OnLoadingComplete = function () {
+            var scene = engine.getScene(),
+                cam,
+                anim,
+                cursor;
+
+            // put a camera in the scene
+            cam = new CL3D.CameraSceneNode();
+            cam.Pos.X = -50;
+            cam.Pos.Y = 180;
+            cam.Pos.Z = -20;
+
+            // initialize the CopperLicht animator that moves by keyboard
+            // and mouse
+            anim = new CL3D.AnimatorCameraFPS(cam, engine);
+            anim.MoveSpeed = 0.2;
+            anim.RotateSpeed = 250;
+            anim.JumpSpeed = 1.8;
+            anim.setLookByMouseDown(true); 
+
+            // record mouse scroll events on a virtual cursor
+            // its coordinates will (locally) override the real ones
+            // stored in the engine
+            cursor = proxyObject(engine);
+            cursor.MouseIsDown = true;
+            cursor.MouseDownX = cursor.MouseDownY = cursor.MouseX = cursor.MouseY = 0;
+            cursor.WheelSensitivity = 0.75;
+
+            function onMouseWheel(e) {
+                if ('wheelDeltaX' in e) {
+                    cursor.MouseX += e.wheelDeltaX * cursor.WheelSensitivity;
+                    cursor.MouseY += e.wheelDeltaY * cursor.WheelSensitivity;
+
+                } else if ('axis' in e) {
+                    if (e.axis === e.HORIZONTAL_AXIS) {
+                        cursor.MouseX += e.detail * cursor.WheelSensitivity;
+                    } else {
+                        cursor.MouseY += e.detail * cursor.WheelSensitivity;
+                    }
+                }
+                e.preventDefault();
+            }
+            engine.MainElement.addEventListener('mousewheel', onMouseWheel, false);
+            engine.MainElement.addEventListener('MozMousePixelScroll', onMouseWheel, false);
+            anim.CursorControl = cursor;
+
+            cam.addAnimator(anim);
+            anim.lookAt(new CL3D.Vect3d(-200, 90, 200));
+
+            scene.getRootSceneNode().addChild(cam);
+            scene.setActiveCamera(cam);
+            
+            // set up proper collisions
+            cam.addAnimator(new CL3D.AnimatorCollisionResponse(
+                new CL3D.Vect3d(20, 40, 20),
+                new CL3D.Vect3d(0, -10, 0),
+                new CL3D.Vect3d(0, 30, 0),
+                scene.getCollisionGeometry()));
+
+        }
+        </script>
+    
+    </body>
+</html>
